@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account document containing basic profile and role",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 150 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "role": { "type": "string", "enum": ["customer", "connoisseur", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "Favorite": {
+      "title": "Favorite Perfume",
+      "description": "Saved favorite fragrance for the user",
+      "type": "object",
+      "properties": {
+        "perfumeId": { "type": "string", "maxLength": 64 },
+        "perfumeName": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string", "maxLength": 50 },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["perfumeId", "perfumeName", "addedAt"]
+    },
+    "Order": {
+      "title": "Customer Order",
+      "description": "Artisanal flacon order placed by user",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string", "maxLength": 64 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "customerEmail": { "type": "string", "maxLength": 150 },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["confirmed", "processing", "macerating", "shipped", "delivered"] },
+        "itemsCount": { "type": "number" },
+        "items": { "type": "array" },
+        "sampleChoice": { "type": "string", "maxLength": 100 },
+        "trackingNumber": { "type": "string", "maxLength": 100 },
+        "shippingAddress": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderId", "userId", "totalAmount", "status", "createdAt"]
+    },
+    "DiscoveryKit": {
+      "title": "Saved Discovery Kit",
+      "description": "Bespoke 3-vial customized discovery kit saved by user",
+      "type": "object",
+      "properties": {
+        "kitId": { "type": "string", "maxLength": 64 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "vial1": { "type": "string", "maxLength": 100 },
+        "vial2": { "type": "string", "maxLength": 100 },
+        "vial3": { "type": "string", "maxLength": 100 },
+        "monogram": { "type": "string", "maxLength": 5 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["kitId", "userId", "vial1", "vial2", "vial3", "createdAt"]
+    },
+    "Review": {
+      "title": "Olfactory Review",
+      "description": "Community review and scent assessment for a perfume",
+      "type": "object",
+      "properties": {
+        "reviewId": { "type": "string", "maxLength": 64 },
+        "perfumeId": { "type": "string", "maxLength": 64 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 100 },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "maxLength": 600 },
+        "sillageRating": { "type": "string", "enum": ["Intimate", "Moderate", "Enveloping", "Monumental"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reviewId", "perfumeId", "userId", "authorName", "rating", "comment", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "entities/User" },
+      "description": "User profile and credentials"
+    },
+    "/users/{userId}/favorites/{favoriteId}": {
+      "schema": { "$ref": "entities/Favorite" },
+      "description": "User saved perfume favorites"
+    },
+    "/users/{userId}/orders/{orderId}": {
+      "schema": { "$ref": "entities/Order" },
+      "description": "User subcollection for orders"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "entities/Order" },
+      "description": "Root orders collection storing user past perfume purchases"
+    },
+    "/users/{userId}/discoveryKits/{kitId}": {
+      "schema": { "$ref": "entities/DiscoveryKit" },
+      "description": "User bespoke discovery sets"
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "entities/Review" },
+      "description": "Public fragrance reviews and impressions"
+    }
+  }
+}

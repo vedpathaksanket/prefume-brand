@@ -1,0 +1,6 @@
+{
+  "name": "Aura — Haute Parfumerie Digital Flagship",
+  "description": "Artisanal luxury perfume digital boutique with interactive olfactory scent pyramids, category showcases, bespoke discovery sample kit builder, and immersive product notes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

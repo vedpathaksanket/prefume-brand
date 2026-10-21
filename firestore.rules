@@ -1,0 +1,134 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny all documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'role', 'createdAt']) &&
+        data.uid == request.auth.uid &&
+        data.email is string && data.email.size() <= 150 &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500)) &&
+        (!('role' in data) || (data.role in ['customer', 'connoisseur', 'admin'])) &&
+        data.createdAt is string;
+    }
+
+    function isValidFavorite(data) {
+      return data.keys().hasAll(['perfumeId', 'perfumeName', 'addedAt']) &&
+        data.keys().hasOnly(['perfumeId', 'perfumeName', 'category', 'addedAt']) &&
+        data.perfumeId is string && data.perfumeId.size() <= 64 &&
+        data.perfumeName is string && data.perfumeName.size() <= 100 &&
+        (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
+        data.addedAt is string;
+    }
+
+    function isValidOrder(data, userId) {
+      return data.keys().hasAll(['orderId', 'userId', 'totalAmount', 'status', 'createdAt']) &&
+        data.userId == userId &&
+        data.orderId is string && data.orderId.size() <= 64 &&
+        data.totalAmount is number && data.totalAmount >= 0 &&
+        data.status in ['confirmed', 'processing', 'macerating', 'shipped', 'delivered'] &&
+        (!('customerEmail' in data) || (data.customerEmail is string && data.customerEmail.size() <= 150)) &&
+        (!('itemsCount' in data) || (data.itemsCount is number && data.itemsCount >= 0)) &&
+        (!('items' in data) || (data.items is list && data.items.size() <= 30)) &&
+        (!('sampleChoice' in data) || (data.sampleChoice is string && data.sampleChoice.size() <= 100)) &&
+        (!('trackingNumber' in data) || (data.trackingNumber is string && data.trackingNumber.size() <= 100)) &&
+        (!('shippingAddress' in data) || (data.shippingAddress is string && data.shippingAddress.size() <= 300)) &&
+        data.createdAt is string;
+    }
+
+    function isValidDiscoveryKit(data, userId) {
+      return data.keys().hasAll(['kitId', 'userId', 'vial1', 'vial2', 'vial3', 'createdAt']) &&
+        data.keys().hasOnly(['kitId', 'userId', 'vial1', 'vial2', 'vial3', 'monogram', 'createdAt']) &&
+        data.userId == userId &&
+        data.kitId is string && data.kitId.size() <= 64 &&
+        data.vial1 is string && data.vial1.size() <= 100 &&
+        data.vial2 is string && data.vial2.size() <= 100 &&
+        data.vial3 is string && data.vial3.size() <= 100 &&
+        (!('monogram' in data) || (data.monogram is string && data.monogram.size() <= 5)) &&
+        data.createdAt is string;
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['reviewId', 'perfumeId', 'userId', 'authorName', 'rating', 'comment', 'createdAt']) &&
+        data.keys().hasOnly(['reviewId', 'perfumeId', 'userId', 'authorName', 'rating', 'comment', 'sillageRating', 'createdAt']) &&
+        data.userId == request.auth.uid &&
+        data.reviewId is string && data.reviewId.size() <= 64 &&
+        data.perfumeId is string && data.perfumeId.size() <= 64 &&
+        data.authorName is string && data.authorName.size() <= 100 &&
+        data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+        data.comment is string && data.comment.size() > 0 && data.comment.size() <= 600 &&
+        (!('sillageRating' in data) || (data.sillageRating in ['Intimate', 'Moderate', 'Enveloping', 'Monumental'])) &&
+        data.createdAt is string;
+    }
+
+    // User Profile
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+      allow delete: if false;
+
+      // User Favorites Subcollection
+      match /favorites/{favoriteId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(favoriteId) && isValidFavorite(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      // User Orders Subcollection
+      match /orders/{orderId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(orderId) && isValidOrder(request.resource.data, userId);
+        allow update, delete: if false;
+      }
+
+      // User Discovery Kits Subcollection
+      match /discoveryKits/{kitId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(kitId) && isValidDiscoveryKit(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Root Orders Collection (for querying past perfume purchases)
+    match /orders/{orderId} {
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(orderId) && request.resource.data.userId == request.auth.uid && isValidOrder(request.resource.data, request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    // Public Olfactory Reviews
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidId(reviewId) && request.resource.data.userId == request.auth.uid && isValidReview(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // Connection testing endpoint for boot validation
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}
